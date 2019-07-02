@@ -1,7 +1,7 @@
 <template>
 <div>
     <span>
-    page2
+    admissionOperationPage2
     {{numdata}}
     </span>
 
@@ -10,7 +10,7 @@
 </template>
 <script>
 export default {
-    name: "Page2",
+    name: "admissionOperationPage2",
     data(){
         return{
             numdata:0,
@@ -27,4 +27,3 @@ export default {
     
 }
 </script>
-

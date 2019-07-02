@@ -6,30 +6,13 @@ import ElementUI from 'element-ui'
 import 'element-ui/lib/theme-chalk/index.css'
 import router from './router'
 import store from './vuex/store'
+import postForm from './bean/http'
+import axios from 'axios'
 
+Vue.prototype.$axios = axios
 Vue.config.productionTip = false
+Vue.prototype.$postForm = postForm;
 Vue.use(ElementUI)
-
-
-//拦截登录功能
-// router.beforeEach((to, from, next) => {
-//   if(to.path == '/login'){
-//     sessionStorage.removeItem('user');
-//   }
-//   let user = JSON.parse(sessionStorage.getItem('user'));
-//   if (!user && to.path != '/login'){
-//      next({path:'/login'}) 
-//   }else{
-//     if(from.path == '/login'){
-//       next();
-//     }else{
-//       next({path:'/login'}) 
-//     }
-//   }
-// })
-
-
-
 
 
 /* eslint-disable no-new */

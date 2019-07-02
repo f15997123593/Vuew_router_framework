@@ -9,7 +9,8 @@ Vue.use(Vuex)
 
 const store = new Vuex.Store({
     state:{
-        count:0
+        count:'',//测试使用的
+        token: null,//储存Token
     },
     //计算方法
     getters:{
@@ -30,7 +31,17 @@ const store = new Vuex.Store({
         },
         reduction(state){
             state.count--;
+        },
+        //登录功能的路由拦截实现
+        login(state,data) {
+            localStorage.token = data;
+            state.token = data;
+        },
+        logout(state){
+            localStorage.removeItem('token');
+            state.token = null
         }
+
     }
 })
 

@@ -20,7 +20,7 @@
         @select="selectItem"
       >
         <label v-for="(item,index) in navList" :key="index">
-          <el-submenu :index="item.url" :href="item.url">
+          <el-submenu :index="item.url!=undefined?item.url:'' ">
             <template slot="title">
               <i :class="item.icon"></i>
               <span slot="title" v-show="!isCollapse">{{item.name}}</span>
@@ -45,7 +45,7 @@
       <el-header style="height:94px;">
         <el-row>
           <el-col style="margin:6px 0px 7px 0px;">
-            <el-dropdown style="float:right;">
+            <el-dropdown style="float:right;" @command="handleCommand">
               <div style="display: flex;align-items: center;">
                 <el-avatar :size="40" :src="headUrl"></el-avatar>
                 <span style="font-size:18px;margin-left:10px">
@@ -53,8 +53,8 @@
                 </span>
               </div>
               <el-dropdown-menu slot="dropdown">
-                <el-dropdown-item>个人信息</el-dropdown-item>
-                <el-dropdown-item>注销登录</el-dropdown-item>
+                <el-dropdown-item command="userInfo">个人信息</el-dropdown-item>
+                <el-dropdown-item command="signout">注销登录</el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
             <el-badge :value="12" class="item badge">
@@ -65,9 +65,9 @@
             <el-tabs type="card" v-model="activityTab" closable @tab-remove="removeTab" @tab-click="clickTab">
               <el-tab-pane
                 v-for="(item) in tabList"
-                :key="item.name"
+                :key="item.path"
                 :label="item.title"
-                :name="item.name"
+                :name="item.path"
               ></el-tab-pane>
             </el-tabs>
           </el-col>
@@ -83,7 +83,9 @@
 </template>
 
 <script>
+
 import "../assets/icon/iconfont.css";
+import bus from '../vuex/eventBus'//引入eventBus,接收子界面传递的跳转指令,然后在父界面跳转,添加tab
 
 export default {
   name: "Home",
@@ -98,6 +100,17 @@ export default {
       tabList: [],//底部tab记录的数据
       //模拟的菜单栏数据
       navList: [
+        {
+          name: "入院管理",
+          icon: "el-icon-umptongji",
+          items: [
+            {
+              name: "入院列表",
+              url: "/admissionList",
+              icon: "el-icon-umpbaojingxiaoxi"
+            }
+          ]
+        },
         {
           name: "菜单选项1",
           url: "/Page1",
@@ -134,7 +147,7 @@ export default {
         },
         {
           name: "菜单选项3",
-          url: "/Page9",
+          url: "/Page3",
           icon: "el-icon-menu",
           items: [
             {
@@ -157,6 +170,7 @@ export default {
             listStr = listStr.substr(0,listStr.length-1)
         }
       this.compListStr = listStr;
+      console.log(this.compListStr)
     },
     showCollapse() {
       this.isCollapse = !this.isCollapse;
@@ -173,15 +187,27 @@ export default {
     },
     //完成submenu的open和close事件
     submenuOpen(url) {
-      this.$router.push({ path: url });
-      this.addTab(url);
+      if(url != undefined && url!=''){
+        this.$router.push({ path: url });
+        this.addTab(url);
+
+      }
     },
     //对于没有page展示的时候,显示默认的第一个page
     getFirstPage() {
       if (this.navList != null) {
+        if(this.navList[0].url!=undefined){
         this.$router.push({ path: this.navList[0].url });
         this.addTab(this.navList[0].url);
         this.activityTab = this.navList[0].url;
+        this.addRouterInclude(this.navList[0].url);
+        }else{
+          this.$router.push({ path: this.navList[0].items[0].url });
+          this.addTab(this.navList[0].items[0].url);
+          this.activityTab = this.navList[0].items[0].url;
+          this.addRouterInclude(this.navList[0].items[0].url);
+        }
+    
       }
     },
     //给Tab添加tab-item
@@ -190,7 +216,7 @@ export default {
       //是否存在相同的tab-item
       var isHaveSameItem = false;
       this.tabList.forEach(item => {
-        if (tabpath == item.name) {
+        if (tabpath == item.path) {
           isHaveSameItem = true;
           this.activityTab = tabpath;
         }
@@ -201,39 +227,38 @@ export default {
         this.navList.forEach(item => {
           if (item.url == tabpath) {
             this.tabList.push({
-              name: item.url,
+              path: item.url,
               id: item.name,
               title: item.name
             });
             this.activityTab = item.url;
-            this.compList.push(item.url.substring(1,item.url.length));
-            this.listtoStr();
+            this.addRouterInclude(item.url);
           } else {
             var items = item.items;
             items.forEach(item1 => {
               if (item1.url == tabpath) {
                 this.tabList.push({
-                  name: item1.url,
+                  path: item1.url,
                   id: item1.name,
                   title: item1.name
                 });
                 this.activityTab = item1.url;
-                this.compList.push(item1.url.substring(1,item1.url.length));
-                this.listtoStr();
+                this.addRouterInclude(item1.url);
               }
             });
           }
         });
       }
     },
+    //删除tab的点击事件
     removeTab(targetName) {
+      console.log(targetName);
       let removeindex = 0;
       for (let i = 0; i < this.tabList.length; i++) {
-        if (this.tabList[i].name == targetName) {
+        if (this.tabList[i].path == targetName) {
           this.tabList.splice(i, 1);
           removeindex = i;
-          this.compList.splice(this.compList.indexOf(targetName.substring(1,targetName.length)), 1); 
-          this.listtoStr();
+          this.removeRouterInclude(targetName);
           break;
         }
       }
@@ -246,20 +271,103 @@ export default {
         //如果是被删除的页面
         //则加载上一个页面
  //       console.log(this.$route.path);
-        if(targetName == this.$route.path){
-          this.$router.push({ path: this.tabList[removeindex - 1].name });
-           this.activityTab =this.tabList[removeindex - 1].name;
+ // 由于部分界面是子页面url
+  //      if(targetName.indexOf(this.tabList[i].path) != -1){
+        if(this.$route.path.indexOf(targetName) != -1){
+          if(removeindex != 0){
+            this.activityTab =this.tabList[removeindex - 1].path;
+            this.$router.push({ path: this.tabList[removeindex - 1].path });
+          }else{
+            this.activityTab =this.tabList[0].path;
+            this.$router.push({ path: this.tabList[0].path });
+          }
         }
-        // this.$router.push({ path: this.navList[0].url });
       }
     },
+    //点击tab的事件
     clickTab(targetName) {
       this.$router.push({ path: targetName.name });
       this.activityTab = targetName.name;
-    }
+    },
+    //处理头像的下拉菜单的点击事件
+    handleCommand(command){
+      if(command == 'userInfo'){
+          //手动添加不存在navList内的tab
+          this.addOtherRouter('/userInfo','个人信息');
+      }else if(command == 'signout'){
+          //退出登录
+          this.$store.commit('logout')
+          this.$router.push({path:'/login'});
+      }
+    },
+    //根据url添加
+    addRouterInclude(url){
+      console.log(this.compList.indexOf(url.substring(1,url.length)));
+      if(this.compList.indexOf(url.substring(1,url.length)) == -1){
+        this.compList.push(''+url.substring(1,url.length));
+        this.listtoStr();
+      }
+    },
+    //根据URL移除
+    removeRouterInclude(url){
+      if(this.compList.indexOf(url.substring(1,url.length)) != -1){
+        console.log('remove');
+        this.compList.splice(this.compList.indexOf(url.substring(1,url.length)), 1); 
+        this.listtoStr();
+      }
+    },
+    //添加其他的路由到tab中
+    addOtherRouter(url,title,id){
+      console.log(url);
+      var isHaveSameItem = false;
+      this.tabList.forEach(item => {
+        if (url == item.path) {
+          isHaveSameItem = true;
+          this.activityTab = url;
+        }
+      });
+      //如果不存在,则可以添加新的tab-item
+      if (!isHaveSameItem) {
+          this.tabList.push({
+              path: url,
+              id: ''+url,
+              title: ''+title
+          });
+          //启动include缓存
+          // this.addRouterInclude(url);
+      }
+        this.$router.push({ path: url, query: {id: id }});
+        this.activityTab = url;
+    },
+    //根据子页面传递过来的Page信息来切换显示,跳转子页面
+    //不在子页面写跳转是为了要添加tab
+    geteventBusMshJump(msg){
+      //添加已经存在navList内的tab
+      if(msg.type == 'add'){
+        //将子界面通知要存储的路由 添加到keep-alive中
+        //示例如 bus.$emit('homePage',{type:'add',path:'/admissionOperation'});
+          this.addRouterInclude(msg.path);
+      }else if(msg.type == 'jump'){
+        //跳转到指定界面
+        //这种跳转需要判断是否需要清除keep-alive,针对需要清除的,调用remove()方法清除keep-alive;
+        //示例入admissionList的 bus.$emit('homePage',{type:'jump',path:'/admissionOperation',id:'12',title:'入院详情'});
+        this.removeRouterInclude(msg.path);
+        this.addOtherRouter(msg.path,msg.title,msg.id)
+      }
+
+    },
+    
   },
   mounted() {
+    //获取当前url
+    //由于顶部的tabList未保存,就不该功能了
+    //放弃跳转指定页面
+    //改成跳转第一页
     this.getFirstPage();
+    bus.$on('homePage',(msg)=>{
+        this.geteventBusMshJump(msg);
+    });
+
   }
 };
 </script>
